@@ -1,17 +1,47 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Emotion Recognition</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Emotion Recognition</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Facial Emotion Recognition</h1>
-        <img src="{{ url_for('video_feed') }}" width="640" height="480">
-        <p>Look at the camera – your emotion will appear on your face!</p>
-    </div>
+
+<h2>Emotion Recognition</h2>
+
+<video id="video" width="640" height="480" autoplay></video>
+<button onclick="captureFrame()">Analyze Emotion</button>
+
+<p id="result"></p>
+
+<script>
+// Start webcam
+navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+        document.getElementById("video").srcObject = stream;
+    });
+
+// Capture frame and send to backend
+function captureFrame() {
+    const video = document.getElementById("video");
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    canvas.getContext("2d").drawImage(video, 0, 0);
+
+    const imgData = canvas.toDataURL("image/jpeg");
+
+    fetch("/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imgData })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("result").innerText = "Emotion: " + data.emotion;
+    });
+}
+</script>
+
 </body>
 </html>
