@@ -31,11 +31,26 @@ def predict():
         np_data = np.frombuffer(decoded, np.uint8)
         frame = cv2.imdecode(np_data, cv2.IMREAD_COLOR)
 
-        # Convert to grayscale for FER model
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # Safety check
+        if frame is None:
+            return jsonify({"emotion": "Invalid image frame"})
 
-        # Detect faces
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+        # Resize to improve detection on Render
+        frame = cv2.resize(frame, (640, 480))
+
+        # Convert to grayscale
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.equalizeHist(gray)   # 🔥 Boost contrast (important on Render)
+
+        # Improved detection settings for weak webcam images
+        faces = face_cascade.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=2,       # LOWER for Render
+            minSize=(40, 40)      # Larger min size helps
+        )
+
+        print("Faces detected:", len(faces))  # Debug log (see Render logs)
 
         if len(faces) == 0:
             return jsonify({"emotion": "No face detected"})
@@ -43,6 +58,7 @@ def predict():
         # Use the first detected face
         x, y, w, h = faces[0]
         roi_gray = gray[y:y+h, x:x+w]
+
         roi_gray = cv2.resize(roi_gray, (48, 48))
         roi_gray = roi_gray / 255.0
         roi_gray = roi_gray.reshape(1, 48, 48, 1)
@@ -58,5 +74,4 @@ def predict():
         return jsonify({"emotion": "Error processing image"})
 
 if __name__ == "__main__":
-    # Port 10000 is recommended for Render
     app.run(host="0.0.0.0", port=10000, debug=True)
